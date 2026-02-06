@@ -19,39 +19,52 @@ async def get_daily_info():
         if not setup:
             # Create setup if it doesn't exist
             print("Creating new daily setup...")
-            setup = await create_daily_setup()
+            await create_daily_setup()
             setup = get_today_setup()
         
         if not setup:
-            return {"error": "Today's game could not be created", "setup": None}
+            raise HTTPException(status_code=500, detail="Could not create daily setup")
         
         # Get initial state from cache
         today = date.today()
         initial_hash = compute_state_hash(today, 1, setup["turn_order"], "START")
         cached = get_cached_state(initial_hash)
         
-        if not cached:
-            # Return basic info without dialogues
-            return {
-                "date": setup["date"],
-                "category": setup.get("category", "Unknown"),
-                "turn_order": setup["turn_order"],
-                "initial_state_hash": initial_hash,
-                "round_number": 1,
-                "dialogues": [],
-                "message": "First round not yet generated"
-            }
+        # If no cached dialogues, generate them now
+        if not cached or not cached.get("dialogues"):
+            print("Generating first round dialogues...")
+            
+            dialogues_data = await generate_all_responses(
+                models=setup["turn_order"],
+                mole_model=setup["mole_model"],
+                innocent_word=setup["innocent_word"],
+                mole_word=setup["mole_word"],
+                category=setup["category"],
+                round_number=1
+            )
+            
+            # Save to cache
+            save_game_state(
+                state_hash=initial_hash,
+                game_date=today,
+                round_number=1,
+                remaining_models=setup["turn_order"],
+                action="START",
+                dialogues=dialogues_data
+            )
+            
+            cached = get_cached_state(initial_hash)
         
-        dialogues = [ModelDialogue(**d) for d in cached["dialogues"]]
+        dialogues = [ModelDialogue(**d) for d in cached["dialogues"]] if cached else []
         
-        return DailyInfoResponse(
-            date=setup["date"],
-            category=setup.get("category", "Unknown"),
-            turn_order=setup["turn_order"],
-            initial_state_hash=initial_hash,
-            round_number=1,
-            dialogues=dialogues
-        )
+        return {
+            "date": setup["date"],
+            "category": setup.get("category", "Bilinmiyor"),
+            "turn_order": setup["turn_order"],
+            "initial_state_hash": initial_hash,
+            "round_number": 1,
+            "dialogues": [{"model_name": d.model_name, "message": d.message} for d in dialogues]
+        }
         
     except Exception as e:
         print(f"Error in get_daily_info: {str(e)}")
@@ -59,7 +72,7 @@ async def get_daily_info():
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/play_turn", response_model=PlayTurnResponse)
+@router.post("/play_turn")
 async def play_turn(request: PlayTurnRequest):
     """Play a turn - PASS or ELIMINATE a model."""
     
@@ -85,7 +98,6 @@ async def play_turn(request: PlayTurnRequest):
         
         # Validate action
         if request.action == "PASS":
-            # Pass only allowed in round 1
             if current_round != 1:
                 raise HTTPException(status_code=400, detail="PASS only allowed in round 1")
             
@@ -95,7 +107,7 @@ async def play_turn(request: PlayTurnRequest):
             
         elif request.action == "ELIMINATE":
             if not request.target_model:
-                raise HTTPException(status_code=400, detail="target_model required for ELIMINATE")
+                raise HTTPException(status_code=400, detail="target_model required")
             
             if request.target_model not in remaining_models:
                 raise HTTPException(status_code=400, detail="Invalid target model")
@@ -107,17 +119,15 @@ async def play_turn(request: PlayTurnRequest):
         else:
             raise HTTPException(status_code=400, detail="Invalid action")
         
-        # Check game over conditions
+        # Check game over
         game_over = False
         winner = None
         
         if request.action == "ELIMINATE":
             if request.target_model == setup["mole_model"]:
-                # Found the mole - user wins!
                 game_over = True
                 winner = "USER"
             elif len(new_remaining) <= 2:
-                # Mole survived - mole wins!
                 game_over = True
                 winner = "MOLE"
         
@@ -128,24 +138,22 @@ async def play_turn(request: PlayTurnRequest):
         cached = get_cached_state(new_hash)
         
         if cached:
-            # Return cached response
-            dialogues = [ModelDialogue(**d) for d in cached["dialogues"]]
-            return PlayTurnResponse(
-                state_hash=new_hash,
-                round_number=new_round,
-                remaining_models=new_remaining,
-                dialogues=dialogues,
-                game_over=cached["game_over"],
-                winner=cached.get("winner"),
-                can_pass=False,
-                eliminated_model=eliminated
-            )
+            dialogues = [{"model_name": d["model_name"], "message": d["message"]} for d in cached["dialogues"]]
+            return {
+                "state_hash": new_hash,
+                "round_number": new_round,
+                "remaining_models": new_remaining,
+                "dialogues": dialogues,
+                "game_over": cached["game_over"],
+                "winner": cached.get("winner"),
+                "can_pass": False,
+                "eliminated_model": eliminated
+            }
         
         # Generate new dialogues if game not over
         if game_over:
             dialogues_data = []
         else:
-            # Get previous dialogues for context
             previous_dialogues = []
             if request.current_state_hash:
                 prev_state = get_cached_state(request.current_state_hash)
@@ -175,18 +183,18 @@ async def play_turn(request: PlayTurnRequest):
             eliminated_model=eliminated
         )
         
-        dialogues = [ModelDialogue(**d) for d in dialogues_data]
+        dialogues = [{"model_name": d["model_name"], "message": d["message"]} for d in dialogues_data]
         
-        return PlayTurnResponse(
-            state_hash=new_hash,
-            round_number=new_round,
-            remaining_models=new_remaining,
-            dialogues=dialogues,
-            game_over=game_over,
-            winner=winner,
-            can_pass=False,
-            eliminated_model=eliminated
-        )
+        return {
+            "state_hash": new_hash,
+            "round_number": new_round,
+            "remaining_models": new_remaining,
+            "dialogues": dialogues,
+            "game_over": game_over,
+            "winner": winner,
+            "can_pass": False,
+            "eliminated_model": eliminated
+        }
         
     except HTTPException:
         raise
@@ -196,22 +204,9 @@ async def play_turn(request: PlayTurnRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/cron/daily-setup")
-async def trigger_daily_setup(secret: str = None):
-    """Trigger daily setup - called by cron job."""
-    
-    try:
-        setup = await create_daily_setup()
-        return {"status": "success", "date": setup["date"] if setup else "unknown"}
-    except Exception as e:
-        print(f"Error in trigger_daily_setup: {str(e)}")
-        print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @router.get("/health")
 async def health_check():
-    """Health check endpoint with config verification."""
+    """Health check endpoint."""
     from app.config import get_settings
     
     try:
@@ -219,10 +214,7 @@ async def health_check():
         return {
             "status": "healthy",
             "supabase_configured": bool(settings.supabase_url and "supabase" in settings.supabase_url),
-            "openrouter_configured": bool(settings.openrouter_api_key and settings.openrouter_api_key.startswith("sk-"))
+            "openrouter_configured": bool(settings.openrouter_api_key and len(settings.openrouter_api_key) > 10)
         }
     except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e)
-        }
+        return {"status": "error", "message": str(e)}
