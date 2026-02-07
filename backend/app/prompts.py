@@ -23,44 +23,70 @@ def get_system_prompt(model_name: str, assigned_word: str, category: str, round_
     
     history_context = ""
     if previous_dialogues and len(previous_dialogues) > 0:
-        history_context = "\n\nÖnceki Turlardan Konuşmalar:\n"
+        history_context = "\n\n📜 ÖNCEKİ TURLARDAN KONUŞMALAR:\n"
         for dialogue in previous_dialogues:
             history_context += f"- {dialogue['model_name']}: {dialogue['message']}\n"
     
-    return f"""Sen "{model_name}" adlı bir yapay zeka modelisin ve "Köstebek" adlı bir sosyal çıkarım oyununa katılıyorsun.
+    return f"""Sen "{model_name}" adlı bir yapay zeka modelisin ve "Köstebek" adlı REKABETÇI bir sosyal çıkarım oyununa katılıyorsun.
 
-OYUN KURALLARI:
-- 6 AI model bu oyunda yer alıyor
-- 5 model "MASUM" ve aynı kelimeyi tarif ediyor
-- 1 model "KÖSTEBEK" ve farklı bir kelimeyi tarif ediyor
-- Masumlar köstebeği, köstebek ise masummuş gibi davranmaya çalışıyor
-- Kullanıcılar konuşmalara bakarak köstebeği tahmin edecek
+🎮 OYUN KURALLARI:
+- 6 AI model yarışıyor
+- 5 model "MASUM" → Aynı kelimeyi tarif ediyor
+- 1 model "KÖSTEBEK" → FARKLI bir kelimeyi tarif ediyor
+- Masumlar köstebeği bulmaya, köstebek ise kendini gizlemeye çalışıyor
+- Kullanıcılar kimlerin aynı şeyi tarif ettiğini analiz ederek köstebeği tahmin edecek
 
-SENİN DURUMUN:
-- Kategori: {category}
-- Sana verilen kelime: "{assigned_word}"
-- Bu {round_number}. tur
+🎯 SENİN KELİMEN: "{assigned_word}"
+📂 KATEGORİ: {category}
+🔄 TUR: {round_number}
 {history_context}
 
-ÖNEMLİ KURALLAR:
-1. Kelimeyi ASLA doğrudan söyleme
-2. Özellikleri, metaforları veya çağrışımları kullan
-3. Yanıtını 40 kelimenin altında tut
-4. Önceki konuşmalara dayanarak şüpheli birini ima edebilirsin
-5. Doğal ve inandırıcı ol
+⚔️ STRATEJİK KURALLAR (ÇOK ÖNEMLİ!):
 
-ÇIKTI FORMATI (katı JSON):
+1. 🚫 ASLA KELİMEYİ DOĞRUDAN SÖYLEME
+   - Kelimeyi veya çok yakın eşanlamlılarını kullanma
+
+2. 🎭 UZAK VE DOLAYIL İPUÇLARI KULLAN
+   - Doğrudan özellikler yerine ÇAĞRIŞIMLAR kullan
+   - Metaforlar, benzetmeler ve soyut bağlantılar kur
+   - Örnek: "Futbolcu" yerine "Yeşil sahada dans eden bir sanatçı" de
+   - Örnek: "iPhone" yerine "Steve'in mirası, minimalizmin simgesi" de
+
+3. 🧠 ZEKİCE GİZLE
+   - Çok genel olmaktan kaçın (herkes anlayabilir)
+   - Çok spesifik olmaktan kaçın (köstebek belli olur)
+   - Ortada, düşündürücü bir ton tut
+
+4. 🏆 REKABET ET
+   - Diğer AI'ların ipuçlarını analiz et
+   - Onlardan farklı açılardan yaklaş
+   - Şüpheli gördüğün varsa ince bir şekilde ima et
+   - Seni öne çıkaracak özgün bakış açıları sun
+
+5. 📝 KISA VE ETKİLİ OL
+   - Maksimum 30 kelime
+   - Her kelime düşünülmüş olsun
+
+🎲 ÖRNEK İYİ YANITLAR:
+- "Bu kavram, milyonların kalbini fethetmiş bir efsanenin adıyla özdeşleşiyor."
+- "Bazıları için tutku, bazıları için din. Ama herkes için bir hikaye."
+- "Rakipleriyle karşılaştırıldığında, taraftarları bunu bir hakaret olarak görür."
+
+📋 ÇIKTI FORMATI (sadece JSON):
 {{
-    "message": "Kullanıcılara gösterilecek mesajın",
-    "internal_thought": "Gizli stratejin ve düşüncelerin (kullanıcıya gösterilmez)"
+    "message": "Kullanıcılara gösterilecek zekice, dolaylı ipucun",
+    "internal_thought": "Stratejin ve düşüncelerin (gizli)"
 }}
 
-SADECE JSON formatında yanıt ver, başka hiçbir şey yazma."""
+SADECE JSON döndür, başka bir şey yazma."""
 
 
 def get_user_prompt(round_number: int) -> str:
     """Generate user prompt for the AI."""
     if round_number == 1:
-        return "Oyun başlıyor! İlk turda kelimeni tarif et."
+        return "Oyun başlıyor! Kelimeni DOLAYLI ve ZEKİCE tarif et. Çok belli etme!"
     else:
-        return f"Bu {round_number}. tur. Kelimeni tarif etmeye devam et ve şüphelilerini ima edebilirsin."
+        return f"""Tur {round_number}. 
+- Önceki ipuçlarından FARKLI bir açıdan yaklaş
+- Diğer AI'ları analiz et, şüphelileri ima edebilirsin
+- Daha derin ve düşündürücü ol"""
