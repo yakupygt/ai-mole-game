@@ -2,7 +2,7 @@ AI_MODELS = [
     "Gemini",
     "Claude", 
     "ChatGPT",
-    "Mistral",
+    "Qwen",
     "Llama",
     "DeepSeek"
 ]
@@ -12,7 +12,7 @@ OPENROUTER_MODELS = {
     "Gemini": "google/gemini-2.0-flash-001",
     "Claude": "anthropic/claude-3.5-sonnet",
     "ChatGPT": "openai/gpt-4o-mini",
-    "Mistral": "mistralai/mistral-large-latest",
+    "Qwen": "qwen/qwen-2.5-72b-instruct",
     "Llama": "meta-llama/llama-3.3-70b-instruct",
     "DeepSeek": "deepseek/deepseek-chat"
 }
