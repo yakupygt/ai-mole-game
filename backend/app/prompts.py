@@ -2,7 +2,7 @@ AI_MODELS = [
     "Gemini",
     "Claude", 
     "ChatGPT",
-    "Grok",
+    "Mistral",
     "Llama",
     "DeepSeek"
 ]
@@ -12,7 +12,7 @@ OPENROUTER_MODELS = {
     "Gemini": "google/gemini-2.0-flash-001",
     "Claude": "anthropic/claude-3.5-sonnet",
     "ChatGPT": "openai/gpt-4o-mini",
-    "Grok": "x-ai/grok-beta",
+    "Mistral": "mistralai/mistral-large-latest",
     "Llama": "meta-llama/llama-3.3-70b-instruct",
     "DeepSeek": "deepseek/deepseek-chat"
 }
@@ -64,4 +64,3 @@ def get_user_prompt(round_number: int) -> str:
         return "Oyun başlıyor! İlk turda kelimeni tarif et."
     else:
         return f"Bu {round_number}. tur. Kelimeni tarif etmeye devam et ve şüphelilerini ima edebilirsin."
-
