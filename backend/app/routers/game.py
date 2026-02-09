@@ -99,6 +99,8 @@ async def play_turn(request: PlayTurnRequest):
             new_round = 2
             new_remaining = remaining_models
             eliminated = None
+            game_over = False
+            winner = None
             
         elif request.action == "ELIMINATE":
             if not request.target_model:
@@ -181,7 +183,8 @@ async def play_turn(request: PlayTurnRequest):
             eliminated_model=eliminated
         )
         
-        return {
+        # Build response
+        response = {
             "state_hash": new_hash,
             "round_number": new_round,
             "remaining_models": new_remaining,
@@ -191,6 +194,14 @@ async def play_turn(request: PlayTurnRequest):
             "can_pass": False,
             "eliminated_model": eliminated
         }
+        
+        # Add word reveal if game is over
+        if game_over:
+            response["innocent_word"] = setup["innocent_word"]
+            response["mole_word"] = setup["mole_word"]
+            response["mole_model"] = setup["mole_model"]
+        
+        return response
         
     except HTTPException:
         raise
